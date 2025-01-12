@@ -1,8 +1,14 @@
 import streamlit as st
 from datetime import datetime
 import google.generativeai as genai
-import openai
 from streamlit.components.v1 import html
+
+# Try to import OpenAI, but don't fail if it's not available
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
 
 def create_copy_button(text, button_id):
     """Create an HTML/JavaScript copy button that won't affect the page state"""
@@ -51,6 +57,8 @@ def setup_gemini(api_key):
 
 def setup_chatgpt(api_key):
     """Configure ChatGPT API with the provided key"""
+    if not OPENAI_AVAILABLE:
+        raise ImportError("OpenAI package is not installed. Please install it using 'pip install openai'")
     client = openai.OpenAI(api_key=api_key)
     return client
 
@@ -137,7 +145,13 @@ def main():
     
     # Sidebar for API selection and configuration
     st.sidebar.title("API Configuration")
-    api_choice = st.sidebar.radio("Select AI Service", ["Gemini", "ChatGPT"])
+    
+    # Only show ChatGPT option if OpenAI is available
+    api_options = ["Gemini", "ChatGPT"] if OPENAI_AVAILABLE else ["Gemini"]
+    if not OPENAI_AVAILABLE:
+        st.sidebar.warning("ChatGPT option is not available. Install OpenAI package to enable it.")
+    
+    api_choice = st.sidebar.radio("Select AI Service", api_options)
     
     # API Key input based on selection
     if api_choice == "Gemini":
@@ -183,50 +197,20 @@ def main():
                 
                 # Generate posts for each platform
                 with st.spinner(f"Generating posts using {api_choice} AI..."):
-                    # LinkedIn Post
-                    st.subheader("LinkedIn Post")
-                    if api_choice == "Gemini":
-                        linkedin_post = generate_post_with_gemini(model, "LinkedIn", 
-                                                                event_name, formatted_date, 
-                                                                description, venue)
-                    else:
-                        linkedin_post = generate_post_with_chatgpt(model, "LinkedIn", 
-                                                                 event_name, formatted_date, 
-                                                                 description, venue)
-                    html(create_copy_button(linkedin_post, "linkedin"))
-                    st.markdown('<div class="output-container">', unsafe_allow_html=True)
-                    st.markdown(linkedin_post)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    # Twitter Post
-                    st.subheader("Twitter Post")
-                    if api_choice == "Gemini":
-                        twitter_post = generate_post_with_gemini(model, "Twitter", 
-                                                               event_name, formatted_date, 
-                                                               description, venue)
-                    else:
-                        twitter_post = generate_post_with_chatgpt(model, "Twitter", 
-                                                                event_name, formatted_date, 
-                                                                description, venue)
-                    html(create_copy_button(twitter_post, "twitter"))
-                    st.markdown('<div class="output-container">', unsafe_allow_html=True)
-                    st.markdown(twitter_post)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    # WhatsApp Post
-                    st.subheader("WhatsApp Post")
-                    if api_choice == "Gemini":
-                        whatsapp_post = generate_post_with_gemini(model, "WhatsApp", 
-                                                                event_name, formatted_date, 
-                                                                description, venue)
-                    else:
-                        whatsapp_post = generate_post_with_chatgpt(model, "WhatsApp", 
-                                                                 event_name, formatted_date, 
-                                                                 description, venue)
-                    html(create_copy_button(whatsapp_post, "whatsapp"))
-                    st.markdown('<div class="output-container">', unsafe_allow_html=True)
-                    st.markdown(whatsapp_post)
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    for platform in ["LinkedIn", "Twitter", "WhatsApp"]:
+                        st.subheader(f"{platform} Post")
+                        if api_choice == "Gemini":
+                            post = generate_post_with_gemini(model, platform, 
+                                                           event_name, formatted_date, 
+                                                           description, venue)
+                        else:
+                            post = generate_post_with_chatgpt(model, platform, 
+                                                            event_name, formatted_date, 
+                                                            description, venue)
+                        html(create_copy_button(post, platform.lower()))
+                        st.markdown('<div class="output-container">', unsafe_allow_html=True)
+                        st.markdown(post)
+                        st.markdown('</div>', unsafe_allow_html=True)
         else:
             with col2:
                 if not generate:
